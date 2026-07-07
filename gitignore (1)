@@ -1,6 +1,0 @@
-# Configuración con datos sensibles (correo real, etc.)
-config.php
-
-# Archivos de sistema
-.DS_Store
-Thumbs.db
