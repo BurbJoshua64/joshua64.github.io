@@ -5,43 +5,53 @@ $mensaje_alerta = "";
 // PROCESAMIENTO DEL FORMULARIO (PHP)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nombre = htmlspecialchars($_POST['nombre']);
-    $email_cliente = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+    $email_cliente = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
     $detalles_pedido = htmlspecialchars($_POST['detalles']);
 
-    // ===================================================
-    // CONFIGURACIÓN: Coloca aquí tu correo de Gmail real
-    // ===================================================
-    $email_tienda = "joshuaburbano52@gmail.com"; 
+    // Validamos que el correo tenga un formato real (no solo "limpio")
+    $email_valido = filter_var($email_cliente, FILTER_VALIDATE_EMAIL);
 
-    // 1. CORREO PARA LA TIENDA (Remitente)
-    $asunto_tienda = "NUEVA SOLICITUD DE PEDIDO - Tienda TCG";
-    $cuerpo_tienda = "Has recibido un nuevo pedido en la web.\n\n";
-    $cuerpo_tienda .= "--- DATOS DEL CLIENTE ---\n";
-    $cuerpo_tienda .= "Nombre: $nombre\n";
-    $cuerpo_tienda .= "Correo de contacto: $email_cliente\n\n";
-    $cuerpo_tienda .= "--- DETALLES DEL PEDIDO ---\n";
-    $cuerpo_tienda .= "$detalles_pedido\n";
-    
-    $headers_tienda = "From: webmaster@tiendatcg.com\r\n";
-    $headers_tienda .= "Reply-To: $email_cliente\r\n";
-
-    // 2. CORREO DE CONFIRMACIÓN PARA EL CLIENTE (Destinatario)
-    $asunto_cliente = "Confirmación de Recibo - Tu Pedido TCG Master";
-    $cuerpo_cliente = "Hola $nombre,\n\nHemos recibido correctamente tu solicitud de pedido:\n\n";
-    $cuerpo_cliente .= "\"$detalles_pedido\"\n\n";
-    $cuerpo_cliente .= "Actualmente estamos verificando la disponibilidad del stock. Nos pondremos en contacto contigo a este correo a la brevedad para indicarte los métodos de pago y el envío.\n\n";
-    $cuerpo_cliente .= "¡Gracias por tu preferencia!\nAtentamente,\nEl equipo de Tienda TCG Master.";
-    
-    $headers_cliente = "From: $email_tienda\r\n";
-
-    // ENVÍO DE CORREOS (Se usa @ para mitigar errores visuales si sendmail no está activo)
-    $envio_tienda = @mail($email_tienda, $asunto_tienda, $cuerpo_tienda, $headers_tienda);
-    $envio_cliente = @mail($email_cliente, $asunto_cliente, $cuerpo_cliente, $headers_cliente);
-
-    if ($envio_tienda && $envio_cliente) {
-        $mensaje_alerta = "<div class='alerta exito'>¡Pedido enviado con éxito! Se ha notificado a la tienda y te hemos enviado un correo de confirmación.</div>";
+    if (!$email_valido) {
+        $mensaje_alerta = "<div class='alerta error'>El correo ingresado no es válido. Por favor revísalo e intenta de nuevo.</div>";
     } else {
-        $mensaje_alerta = "<div class='alerta error'>Error al procesar el envío. Por favor, asegúrate de tener configurado sendmail en tu panel de XAMPP.</div>";
+        // ===================================================
+        // CONFIGURACIÓN: se carga desde config.php (no se sube a GitHub)
+        // ===================================================
+        $config = require __DIR__ . '/config.php';
+        $email_tienda = $config['email_tienda'];
+        $nombre_remitente = $config['nombre_remitente'];
+
+        // 1. CORREO PARA LA TIENDA (Remitente)
+        $asunto_tienda = "NUEVA SOLICITUD DE PEDIDO - Tienda TCG";
+        $cuerpo_tienda = "Has recibido un nuevo pedido en la web.\n\n";
+        $cuerpo_tienda .= "--- DATOS DEL CLIENTE ---\n";
+        $cuerpo_tienda .= "Nombre: $nombre\n";
+        $cuerpo_tienda .= "Correo de contacto: $email_valido\n\n";
+        $cuerpo_tienda .= "--- DETALLES DEL PEDIDO ---\n";
+        $cuerpo_tienda .= "$detalles_pedido\n";
+
+        // Reply-To ya validado como email real, sin riesgo de inyección de headers
+        $headers_tienda = "From: $nombre_remitente\r\n";
+        $headers_tienda .= "Reply-To: $email_valido\r\n";
+
+        // 2. CORREO DE CONFIRMACIÓN PARA EL CLIENTE (Destinatario)
+        $asunto_cliente = "Confirmación de Recibo - Tu Pedido TCG Master";
+        $cuerpo_cliente = "Hola $nombre,\n\nHemos recibido correctamente tu solicitud de pedido:\n\n";
+        $cuerpo_cliente .= "\"$detalles_pedido\"\n\n";
+        $cuerpo_cliente .= "Actualmente estamos verificando la disponibilidad del stock. Nos pondremos en contacto contigo a este correo a la brevedad para indicarte los métodos de pago y el envío.\n\n";
+        $cuerpo_cliente .= "¡Gracias por tu preferencia!\nAtentamente,\nEl equipo de Tienda TCG Master.";
+
+        $headers_cliente = "From: $email_tienda\r\n";
+
+        // ENVÍO DE CORREOS (Se usa @ para mitigar errores visuales si sendmail no está activo)
+        $envio_tienda = @mail($email_tienda, $asunto_tienda, $cuerpo_tienda, $headers_tienda);
+        $envio_cliente = @mail($email_valido, $asunto_cliente, $cuerpo_cliente, $headers_cliente);
+
+        if ($envio_tienda && $envio_cliente) {
+            $mensaje_alerta = "<div class='alerta exito'>¡Pedido enviado con éxito! Se ha notificado a la tienda y te hemos enviado un correo de confirmación.</div>";
+        } else {
+            $mensaje_alerta = "<div class='alerta error'>Error al procesar el envío. Por favor, asegúrate de tener configurado sendmail en tu panel de XAMPP.</div>";
+        }
     }
 }
 ?>
